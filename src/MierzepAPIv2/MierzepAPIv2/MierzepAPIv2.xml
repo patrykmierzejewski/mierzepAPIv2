@@ -1,0 +1,48 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>MierzepAPIv2</name>
+    </assembly>
+    <members>
+        <member name="T:MierzepAPIv2.Controllers.AuthorsController">
+            <summary>
+            Authors controller
+            </summary>
+        </member>
+        <member name="M:MierzepAPIv2.Controllers.AuthorsController.GetDetailVmAsync(System.Int32)">
+            <summary>
+            Get Author Detail
+            </summary>
+            <param name="id">Set id</param>
+            <returns>AuthorDetailVm</returns>
+        </member>
+        <member name="M:MierzepAPIv2.Controllers.AuthorsController.CreateAuthor(MierzepAPIv2.Application.Authors.Command.CreateAuthor.CreateAuthorCommand)">
+            <summary>
+            Create new Author.
+            </summary>
+            <param name="createAuthorCommand"></param>
+            <returns>ID</returns>
+        </member>
+        <member name="M:MierzepAPIv2.Controllers.HealthChecksController.GetAsyc">
+            <summary>
+            Check Health your API.
+            </summary>
+            <returns>If ok ? return Healthy</returns>
+        </member>
+        <member name="M:MierzepAPIv2.Controllers.HomeController.Create(Microsoft.AspNetCore.Http.IFormCollection)">
+            <summary>
+            This Post method Create IFromCollection
+            </summary>
+            <param name="collection">IFromCollection</param>
+            <returns></returns>
+        </member>
+        <member name="M:MierzepAPIv2.Controllers.HomeController.Edit(System.Int32,Microsoft.AspNetCore.Http.IFormCollection)">
+            <summary>
+            Edit for IFormCollection
+            </summary>
+            <param name="id">Id param</param>
+            <param name="collection">IFormCollection</param>
+            <returns>no</returns>
+        </member>
+    </members>
+</doc>

@@ -1,0 +1,305 @@
+﻿@page "/hishoo"
+
+@inject IJSRuntime JSRuntime
+@inject HttpClient HttpClient
+
+@implements IAsyncDisposable
+
+@using System.Threading;
+@using MierzepUI.Client.Services.GPT3;
+@using Toolbelt.Blazor.SpeechSynthesis @{/* Add these two lines. */}
+@inject SpeechSynthesis SpeechSynthesis
+
+<h3><b>STT (Mozilla OpenSource) + Hishoo + GPT3 openAI + Text To Speech - Microsoft</b></h3>
+
+<div class="container">
+    <div class="row">
+        <div class="mt-4" id="div_language">
+            @if (!isRunPage)
+            {
+                <button class="btn btn-success" @onclick="() => SelectLanguage()">RUN</button>
+            }
+            else
+            {
+                <p>
+                    Nacisnij Start i zacznij mówić. Zmiana mowy na tekst to Mozilla OpenSource.
+                </p>
+                <p>
+                    GPT-3 rozumie najczęściej pytania i udziela różnych odpowiedzi.
+                </p>
+                <p>
+                    W przypadku jęz. angielskiego nie jest dopracowany jeszcze lektor głosu - domyślnie jest włączony Polski
+                </p>
+                <p>
+                    Gify będą się animować z odpowednią akcją.
+                </p>
+            }
+        </div>
+        <p>
+
+        </p>
+        <div class="mt-4" id="div_language">
+            <select class="form-select bg-secondary text-light @isVisible" id="select_language" @onchange="() => SelectLanguage()"></select>
+            <select class="form-select bg-secondary text-light mt-2 @isVisible" id="select_dialect"></select>
+        </div>
+    </div>
+
+    <div class="row">
+        <button class="btn btn-success @isVisible" @onclick="() => StartSpeech()">Start</button>
+        <button class="btn btn-danger @isVisible" @onclick="() => StopSpeech()">Stop</button>
+        <p id="status" class="lead mt-3 text-light" style="display: none">Listenting ...</p>
+    </div>
+
+    <div class="row">
+        <span id="final" class="text-light @isVisible"></span>
+        <span id="interim" class="text-secondary @isVisible"></span>
+    </div>
+
+    <div class="row @isVisible">
+            <!-- Speech -->
+            <div class="col-sm">
+                <div class="row">
+                    @if (this.SpeechSynthesis.Speaking)
+                    {
+                        <img src="https://c.tenor.com/mBPEv_avZqcAAAAC/panfu-robot.gif" width="343" height="372" alt="Panfu Robot GIF - Panfu Robot Talking GIFs" style="max-width: 343px;">
+                    }
+                    else
+                    {
+                        <img src="./image/v1.jpg" width="343" height="372" alt="Panfu Robot" style="max-width: 343px;">
+                    }
+                </div>
+            </div>
+            <div class="col-sm">
+                <!-- Speech your-->
+                <div class="row">
+                    @if (!String.IsNullOrEmpty(_interimTranscript))
+                    {
+                        <img src="https://steamuserimages-a.akamaihd.net/ugc/789753588663340202/3A577E4B5AED98E18C8193DB6AE2A9BDB8F0794B/?imw=5000&imh=5000&ima=fit&impolicy=Letterbox&imcolor=%23000000&letterbox=false" width="343" height="372" alt="Speech" style="max-width: 343px;">
+                    }
+                    else
+                    {
+                        <img src="./image/v2.jpg" width="343" height="372" alt="Panfu Robot" style="max-width: 343px;">
+                    }
+                </div>
+            </div>
+    </div>
+    <!--Result-->
+    <div class="row @isVisible">
+            <p>
+                You text : @_transcriptValue
+            </p>
+        </div>
+    <div class="row @isVisible">
+            <p>
+                Answer : @_answers
+            </p>
+        </div>
+
+</div>
+
+
+@code {
+
+    IEnumerable<SpeechSynthesisVoice> Voices;
+
+    private Hishoo _hishoo { get; set; }
+    private GPT3Service _gpt3 { get; set; }
+
+    private Task<IJSObjectReference> _module;
+    private Task<IJSObjectReference> _moduleSpeech;
+
+    private Task<IJSObjectReference> Module => _module ??= JSRuntime.InvokeAsync<IJSObjectReference>("import", "./language.js").AsTask();
+    private Task<IJSObjectReference> ModuleSpeech => _moduleSpeech ??= JSRuntime.InvokeAsync<IJSObjectReference>("import", "./speechRecognition.js").AsTask();
+
+    private string _answers = string.Empty;
+    private string _interimTranscript = string.Empty;
+    private string _transcriptValue = string.Empty;
+    private string _prevTranscriptValue = string.Empty;
+
+    private string isVisible = "invisible";
+
+    private bool isStart = false;
+    private bool isFirstStart = false;
+    private bool isRunPage = false;
+
+    protected override Task OnInitializedAsync()
+    {
+        _gpt3 = new GPT3Service(HttpClient);
+
+        return base.OnInitializedAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            this.Voices = await this.SpeechSynthesis.GetVoicesAsync();
+            this.StateHasChanged();
+        }
+
+        await Task.CompletedTask;
+    }
+
+    private int Count { get; set; } = 10;
+    private Timer Timer = null;
+    TimerCallback callback = null;
+
+    void onClickSpeak(string text)
+    {
+        var utterancet = new SpeechSynthesisUtterance
+        {
+            Text = text,
+            Voice = this.Voices.FirstOrDefault(v => v.Name.Contains("Adam")),
+            Pitch = 0.7,
+            Rate = 1.4,
+            Volume = 1.0
+        };
+
+        this.SpeechSynthesis.Speak(utterancet); // <-- Speak with "Haruka"'s voice!
+    }
+
+    void StartCountdown()
+    {
+        if (!isFirstStart)
+            return;
+
+        if (Timer == null)
+        {
+            Timer = new Timer(new TimerCallback(_ =>
+            {
+                // Note that the following line is necessary because otherwise
+                // Blazor would not recognize the state change and not refresh the UI
+                InvokeAsync(async () =>
+                {
+                    await GetTranscript();
+                    await GetInterimTranscript();
+
+                    StateHasChanged();
+                });
+
+            }), null, 1000, 1000);
+        }
+    }
+
+    async Task SelectLanguage()
+    {
+        var module = await Module;
+        await module.InvokeVoidAsync("updateCountry");
+        isRunPage = true;
+        isVisible = "visible";
+
+        StateHasChanged();
+    }
+
+    async Task StartSpeech()
+    {
+        if (isStart)
+            return;
+
+        isStart = true;
+
+        var module = await ModuleSpeech;
+        if (!isFirstStart)
+        {
+            isFirstStart = true;
+            await module.InvokeVoidAsync("initStart");
+        }
+
+        await module.InvokeVoidAsync("startSpeech");
+
+        StartCountdown();
+    }
+
+    async Task StopSpeech()
+    {
+        var module = await ModuleSpeech;
+        await module.InvokeVoidAsync("stopSpeech");
+        //await module.InvokeVoidAsync("restartTranscript");
+        _transcriptValue = await module.InvokeAsync<string>("returnTranscript");
+
+        isStart = false;
+        RestartCount();
+    }
+
+    async Task RestartTranscript()
+    {
+        var module = await ModuleSpeech;
+        await module.InvokeVoidAsync("restartTranscript");
+    }
+
+    async Task EndSpeech()
+    {
+        var module = await ModuleSpeech;
+        await module.InvokeVoidAsync("endSpeech");
+    }
+
+    void RestartCount()
+    {
+        Count = 10;
+    }
+
+    async Task<string> GetTranscript()
+    {
+        var module = await ModuleSpeech;
+        _transcriptValue = await module.InvokeAsync<string>("returnTranscript");
+
+        await ProcessGPT();
+
+        return _transcriptValue;
+    }
+
+    async Task<string> GetInterimTranscript()
+    {
+        var module = await ModuleSpeech;
+        _interimTranscript = await module.InvokeAsync<string>("returnInterimTranscript");
+
+        return _transcriptValue;
+    }
+
+    async Task ProcessGPT()
+    {
+        if (_prevTranscriptValue.Equals(_transcriptValue))
+        {
+            return;
+        }
+        else
+        {
+            _prevTranscriptValue = _transcriptValue;
+
+            _answers = await _gpt3.ConnectGPT3(_transcriptValue);
+
+            if (!String.IsNullOrEmpty(_answers))
+            {
+                onClickSpeak(_answers);
+            }
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        //await EndSpeech();
+
+        if (_module != null)
+        {
+            var module = await Module;
+            await module.DisposeAsync();
+        }
+
+        if (_moduleSpeech != null)
+        {
+            var moduleSpeech = await ModuleSpeech;
+
+            await moduleSpeech.DisposeAsync();
+        }
+
+        _answers = string.Empty;
+        _interimTranscript = string.Empty;
+        _transcriptValue = string.Empty;
+        _prevTranscriptValue = string.Empty;
+
+        Voices = null;
+
+        _gpt3.Dispose();
+        await this.SpeechSynthesis.DisposeAsync();
+    }
+}

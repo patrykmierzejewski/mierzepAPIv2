@@ -1,0 +1,35 @@
+﻿@page "/s"
+@using MierzepUI.Client.Models 
+@inject HttpClient Http 
+
+<AuthorizeView>
+    <Authorized>
+        @if (author == null)
+        {
+            <p><em>Loading...</em></p>
+        }
+        else
+        {
+            <h3>Authors Details</h3>
+            <div class="card" style="width:18rem;">
+                <div class="card-body">
+                    <h5 class="card-title">@author.FullName</h5>
+                    <p class="card-text">@author.LastText</p>
+                </div>
+            </div>
+        }
+    </Authorized>
+    <NotAuthorized>
+        <p>Sorry, I'm can't display this card ;(</p>
+    </NotAuthorized>
+</AuthorizeView>
+
+
+@code {
+    private AuthorDetailDTO author;
+
+    protected override async Task OnInitializedAsync()
+    {
+        //author = await Http.GetFromJsonAsync<AuthorDetailDTO>("https://localhost:44384/api/authors/1");
+    }
+}

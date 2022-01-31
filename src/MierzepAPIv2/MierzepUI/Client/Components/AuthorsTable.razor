@@ -1,0 +1,53 @@
+﻿@using MierzepUI.Client.Models 
+@inject IJSRuntime JSRuntime
+@implements IAsyncDisposable
+
+<h3>AuthorsTable</h3>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>
+                FullName
+            </th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var author in Authors)
+        {
+            <tr>
+                <td> @author.FullName </td>
+                <td> <button class="btn btn-success" @onclick="() => SayName(author.FullName)">Przywitaj się</button> </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+
+@code {
+
+    [Parameter]
+    public List<AuthorDTO> Authors { get; set; }
+
+    //Uwotrzenie obiektu referencujnego dla modulu 
+    private Task<IJSObjectReference> _module;
+
+    //Jezli prywaty obietk modulu jest null to tworzymy/importujemy taki plik
+    private Task<IJSObjectReference> Module => _module ??= JSRuntime.InvokeAsync<IJSObjectReference>("import", "./js/authors.js").AsTask();
+
+    async Task SayName(string name)
+    {
+        var module = await Module;
+
+        await module.InvokeVoidAsync("sayName", name);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_module != null)
+        {
+            var module = await _module;
+            await module.DisposeAsync();
+        }
+    }
+}

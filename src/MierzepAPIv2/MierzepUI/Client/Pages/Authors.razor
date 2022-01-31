@@ -1,0 +1,24 @@
+﻿@page "/authors"
+@using MierzepUI.Client.Components; 
+@using MierzepUI.Client.Models; 
+
+<h1>Authors</h1>
+
+<AuthorsTable Authors="@_authors">
+
+</AuthorsTable>
+
+@code {
+    private List<AuthorDTO> _authors { get; set; }
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        _authors = new List<AuthorDTO>()
+        {
+            new AuthorDTO() { FullName = "Patryk Mierzejewski" },
+            new AuthorDTO() { FullName = "Andrzej Wajda" },
+            new AuthorDTO() { FullName = "Quentiono Tarantiono" }
+        };
+    }
+}
